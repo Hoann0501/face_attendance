@@ -1,0 +1,51 @@
+/* Face Attendance – Global Styles */
+
+/* Status badge colors */
+.badge-present {
+    background-color: #1a7a1a;
+    color: #ffffff;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.badge-absent {
+    background-color: #b31a1a;
+    color: #ffffff;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.badge-checked-out {
+    background-color: #1a3fb3;
+    color: #ffffff;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+/* Streamlit metric cards darker borders */
+[data-testid="metric-container"] {
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px;
+    padding: 10px 16px;
+    background: rgba(255,255,255,0.03);
+}
+
+/* Table enhancements */
+.stDataFrame thead tr th {
+    background-color: rgba(255,255,255,0.08) !important;
+    color: #e0e0e0 !important;
+}
+
+/* Sidebar */
+[data-testid="stSidebar"] {
+    background: rgba(0,0,0,0.3);
+}
+
+/* Scrollable tables */
+[data-testid="stDataFrame"] {
+    max-height: 420px;
+    overflow-y: auto;
+}

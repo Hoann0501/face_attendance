@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+streamlit
+pandas
+numpy
+pillow
+torch
+torchvision
+insightface
+onnxruntime
+scikit-learn
+openpyxl
+python-multipart
+pydantic
+requests
+streamlit-autorefresh

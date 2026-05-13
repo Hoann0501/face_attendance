@@ -1,0 +1,4 @@
+﻿person_id,full_name,student_code,class_name,status
+person_002,Hieu,SV002,CNTT01,active
+person_003,thinh,SV003,CNTT01,active
+person_004,Nguyen Van A,SE1234456,SE12345,active

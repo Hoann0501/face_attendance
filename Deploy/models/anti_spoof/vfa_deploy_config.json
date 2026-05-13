@@ -1,0 +1,16 @@
+{
+  "model_name": "vfa_mobilenetv3_small",
+  "model_path": "C:\\Users\\Hoannd\\Downloads\\data_face\\models\\vfa_mobilenetv3_small_best.pth",
+  "img_size": 224,
+  "class_to_idx": {
+    "fake": 0,
+    "real": 1
+  },
+  "idx_to_class": {
+    "0": "fake",
+    "1": "real"
+  },
+  "deploy_threshold_real": 0.9,
+  "test_accuracy_argmax": 0.940982058545798,
+  "note": "Predict real only if real_score >= deploy_threshold_real, otherwise fake."
+}

@@ -1,0 +1,72 @@
+[
+  {
+    "event_type": "CHECK_OUT",
+    "event_time": "2026-05-13 10:14:33",
+    "person_id": "person_004",
+    "full_name": "Nguyen Van A",
+    "student_code": "SE1234456",
+    "similarity": 0.8584,
+    "liveness_status": "REAL_ATTENDANCE_OK",
+    "attendance_status": "CHECKED_OUT"
+  },
+  {
+    "event_type": "CHECK_IN",
+    "event_time": "2026-05-13 10:13:46",
+    "person_id": "person_004",
+    "full_name": "Nguyen Van A",
+    "student_code": "SE1234456",
+    "similarity": 0.8544,
+    "liveness_status": "REAL_ATTENDANCE_OK",
+    "attendance_status": "CHECKED_IN"
+  },
+  {
+    "event_type": "CHECK_OUT",
+    "event_time": "2026-05-13 09:54:49",
+    "person_id": "person_003",
+    "full_name": "thinh",
+    "student_code": "SV003",
+    "similarity": 0.8808,
+    "liveness_status": "REAL_ATTENDANCE_OK",
+    "attendance_status": "CHECKED_OUT"
+  },
+  {
+    "event_type": "CHECK_OUT",
+    "event_time": "2026-05-13 09:12:42",
+    "person_id": "person_004",
+    "full_name": "Nguyen Van A",
+    "student_code": "SE1234456",
+    "similarity": 0.8999,
+    "liveness_status": "REAL_ATTENDANCE_OK",
+    "attendance_status": "CHECKED_OUT"
+  },
+  {
+    "event_type": "CHECK_IN",
+    "event_time": "2026-05-13 08:28:20",
+    "person_id": "person_003",
+    "full_name": "thinh",
+    "student_code": "SV003",
+    "similarity": 0.8206,
+    "liveness_status": "REAL_ATTENDANCE_OK",
+    "attendance_status": "CHECKED_IN"
+  },
+  {
+    "event_type": "CHECK_OUT",
+    "event_time": "2026-05-13 08:10:56",
+    "person_id": "person_002",
+    "full_name": "Hieu",
+    "student_code": "SV002",
+    "similarity": 0.86,
+    "liveness_status": "REAL_ATTENDANCE_OK",
+    "attendance_status": "CHECKED_OUT"
+  },
+  {
+    "event_type": "CHECK_IN",
+    "event_time": "2026-05-13 08:10:56",
+    "person_id": "person_002",
+    "full_name": "Hieu",
+    "student_code": "SV002",
+    "similarity": 0.87,
+    "liveness_status": "REAL_ATTENDANCE_OK",
+    "attendance_status": "CHECKED_IN"
+  }
+]

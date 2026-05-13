@@ -1,0 +1,22 @@
+{
+  "module": "face_image_attribute_analysis",
+  "model_name": "face_attribute_mobilenetv3",
+  "model_path": "C:\\Users\\Hoannd\\Downloads\\data_face\\models\\face_attribute_mobilenetv3_best.pth",
+  "img_size": 224,
+  "gender_labels": {
+    "0": "male",
+    "1": "female"
+  },
+  "age_group_order": [
+    "child",
+    "teen",
+    "adult",
+    "middle_age",
+    "senior"
+  ],
+  "has_age_regression": true,
+  "test_gender_acc": 0.9218442507731234,
+  "test_age_group_acc": 0.7973010964295755,
+  "test_age_mae": 6.4648118019104,
+  "note": "POC model trained on UTKFace. Predicts gender, age_group, and approximate age."
+}

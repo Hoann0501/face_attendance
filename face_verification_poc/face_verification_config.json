@@ -1,0 +1,12 @@
+{
+  "module": "face_verification_1_to_1",
+  "model": "InsightFace buffalo_l",
+  "method": "ArcFace embedding + cosine similarity",
+  "verify_threshold": 0.35,
+  "num_persons": 3,
+  "num_positive_pairs": 15,
+  "num_negative_pairs": 30,
+  "poc_accuracy": 1.0,
+  "templates_path": "C:\\Users\\Hoannd\\Downloads\\data_face\\face_verification_poc\\person_templates.pkl",
+  "note": "POC threshold selected from small local sample. For production, validate on larger identity dataset."
+}
