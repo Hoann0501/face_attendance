@@ -5,6 +5,8 @@ processed_vfa/
 processed_vfa_face_crop/
 vfa_work/
 
+Deploy/data/
+
 # Bỏ qua cache Python
 __pycache__/
 *.pyc
