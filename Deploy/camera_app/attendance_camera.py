@@ -289,6 +289,32 @@ def _api_get_person(person_id) -> dict | None:
     return None
 
 
+def _precheck_can_check_out(person_id: str) -> tuple[bool, str]:
+    """
+    Client-side guard: checkout requires today's row with check-in and no check-out yet.
+    Returns (allowed, reason_vi when not allowed). On HTTP errors, allows and lets API decide.
+    """
+    try:
+        r = requests.get(f"{BACKEND_URL}/attendance/today", timeout=3)
+        if r.status_code != 200:
+            return True, ""
+        records = r.json().get("records") or []
+        pid = str(person_id).strip()
+        for rec in records:
+            if str(rec.get("person_id", "")).strip() != pid:
+                continue
+            cin = str(rec.get("check_in_time") or "").strip()
+            cout = str(rec.get("check_out_time") or "").strip()
+            if not cin or cin.lower() in ("nan", "none", "null"):
+                return False, "Chua check-in hom nay — hay Check-In (phim 1) truoc."
+            if cout and cout.lower() not in ("nan", "none", "null"):
+                return False, "Da check-out hom nay roi."
+            return True, ""
+        return False, "Chua check-in hom nay — chua co ban ghi diem danh."
+    except Exception:
+        return True, ""
+
+
 # ────────────────────────────────────────────────────────────
 # Drawing helpers  (clean, production style)
 # ────────────────────────────────────────────────────────────
@@ -507,36 +533,45 @@ def run(mode: str, cam_idx: int):
                     else:
                         name = person.get("full_name", best_pid) if person else best_pid
                         code = person.get("student_code", "") if person else ""
-                        result = _api_checkin_or_out(
-                            best_pid, mode, best_sim, spoof_status,
-                            spoof.last_face_real, spoof.last_full_real,
-                        )
-                        action = result.get("action", "")
-                        if result.get("ok") and action in ("CHECKED_IN", "CHECKED_OUT"):
-                            label = "Check-In OK" if action == "CHECKED_IN" else "Check-Out OK"
-                            state.set(label, COL_GREEN, f"{name}  |  {code}",
-                                      name=name, sub=f"sim {best_sim:.3f}", tag_color=COL_GREEN, show_tag=True)
-                            # Save the sharpest buffered frame instead of current frame
-                            if last_bbox:
-                                saved = _save_face_capture(
-                                    frame, last_bbox, best_pid, mode,
-                                    sharp_buffer=sharp_buf,
-                                )
-                                if saved:
-                                    print(f"[Camera] Saved capture: {saved}")
-                                sharp_buf.clear()  # reset for next person
-                        elif action == "ALREADY_CHECKED_IN":
-                            state.set("Already checked in today", COL_YELLOW,
-                                      name, name=name, sub=code, tag_color=COL_YELLOW, show_tag=True)
-                        elif action == "ALREADY_CHECKED_OUT":
-                            state.set("Already checked out today", COL_YELLOW,
-                                      name, name=name, sub=code, tag_color=COL_YELLOW, show_tag=True)
-                        elif action == "NOT_CHECKED_IN":
-                            state.set("Not checked in yet", COL_RED, name)
-                        else:
-                            state.set(action.replace("_", " ").title(), COL_RED,
-                                      result.get("message", "")[:50])
-                        state.set_cooldown()
+                        proceed = True
+                        if mode == "checkout":
+                            ok_co, why = _precheck_can_check_out(best_pid)
+                            if not ok_co:
+                                state.set("Check-out bi chan", COL_RED, why)
+                                state.set_cooldown()
+                                proceed = False
+                        if proceed:
+                            result = _api_checkin_or_out(
+                                best_pid, mode, best_sim, spoof_status,
+                                spoof.last_face_real, spoof.last_full_real,
+                            )
+                            action = result.get("action", "")
+                            if result.get("ok") and action in ("CHECKED_IN", "CHECKED_OUT"):
+                                label = "Check-In OK" if action == "CHECKED_IN" else "Check-Out OK"
+                                state.set(label, COL_GREEN, f"{name}  |  {code}",
+                                          name=name, sub=f"sim {best_sim:.3f}", tag_color=COL_GREEN, show_tag=True)
+                                # Save the sharpest buffered frame instead of current frame
+                                if last_bbox:
+                                    saved = _save_face_capture(
+                                        frame, last_bbox, best_pid, mode,
+                                        sharp_buffer=sharp_buf,
+                                    )
+                                    if saved:
+                                        print(f"[Camera] Saved capture: {saved}")
+                                    sharp_buf.clear()  # reset for next person
+                            elif action == "ALREADY_CHECKED_IN":
+                                state.set("Already checked in today", COL_YELLOW,
+                                          name, name=name, sub=code, tag_color=COL_YELLOW, show_tag=True)
+                            elif action == "ALREADY_CHECKED_OUT":
+                                state.set("Already checked out today", COL_YELLOW,
+                                          name, name=name, sub=code, tag_color=COL_YELLOW, show_tag=True)
+                            elif action == "NOT_CHECKED_IN":
+                                state.set("Chua check-in — khong the check-out", COL_RED,
+                                          result.get("message", "")[:80] or "Hay Check-In (phim 1) truoc.")
+                            else:
+                                state.set(action.replace("_", " ").title(), COL_RED,
+                                          result.get("message", "")[:50])
+                            state.set_cooldown()
 
         # ── Draw UI ───────────────────────────────────────────
         _draw_topbar(frame, mode, h, w)

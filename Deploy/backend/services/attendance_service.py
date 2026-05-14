@@ -81,6 +81,24 @@ def _row_to_dict(row: pd.Series) -> dict:
     return {k: ("" if pd.isna(v) else v) for k, v in row.items()}
 
 
+def _nonempty_time_cell(val) -> bool:
+    """True if attendance CSV time cell has a real timestamp string."""
+    if val is None:
+        return False
+    try:
+        if pd.isna(val):
+            return False
+    except TypeError:
+        pass
+    s = str(val).strip()
+    if not s:
+        return False
+    low = s.lower()
+    if low in ("nan", "nat", "none", "<na>", "null"):
+        return False
+    return True
+
+
 # ---------------------------------------------------------------------------
 # Recent events feed
 # ---------------------------------------------------------------------------
@@ -282,12 +300,16 @@ def check_out(
 
     mask = df["person_id"] == person_id
 
-    if not mask.any() or not df.loc[mask, "check_in_time"].iloc[0]:
+    if not mask.any():
         return {"ok": False, "action": "NOT_CHECKED_IN",
                 "message": "Bạn chưa check in hôm nay"}
 
     row = _row_to_dict(df[mask].iloc[0])
-    if row.get("check_out_time"):
+    if not _nonempty_time_cell(row.get("check_in_time")):
+        return {"ok": False, "action": "NOT_CHECKED_IN",
+                "message": "Bạn chưa check in hôm nay"}
+
+    if _nonempty_time_cell(row.get("check_out_time")):
         return {"ok": False, "action": "ALREADY_CHECKED_OUT", "record": row,
                 "message": "Bạn đã check out hôm nay rồi"}
 

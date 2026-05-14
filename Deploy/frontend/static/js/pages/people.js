@@ -2,6 +2,202 @@
    People Management  —  full-page list  +  full-page detail
    ================================================================ */
 
+/* ================================================================
+   Capture Widget  —  Upload + Live Camera, shared file pool
+   ================================================================ */
+const _cw = {};   // state keyed by widget id
+
+function _cwCreate(id) {
+  _cw[id] = { files: [], stream: null };
+  return `
+    <div class="cw-wrap" id="${id}-wrap">
+      <!-- Tabs -->
+      <div class="cw-tabs">
+        <button type="button" class="cw-tab active" data-cwtab="upload" onclick="_cwSwitch('${id}','upload')">Upload anh</button>
+        <button type="button" class="cw-tab" data-cwtab="cam" onclick="_cwSwitch('${id}','cam')">Chup bang camera</button>
+      </div>
+
+      <!-- Upload pane -->
+      <div class="cw-pane active" id="${id}-pane-upload">
+        <div class="upload-zone" id="${id}-zone" style="padding:16px">
+          <input type="file" id="${id}-file" accept="image/*" multiple />
+          <div class="upload-icon-placeholder" style="width:24px;height:24px;margin:0 auto 6px"></div>
+          <div class="upload-text" style="font-size:12px">
+            <strong>Chon anh</strong> hoac keo tha vao day
+          </div>
+        </div>
+      </div>
+
+      <!-- Camera pane -->
+      <div class="cw-pane" id="${id}-pane-cam">
+        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap">
+          <select class="form-select" id="${id}-dev" style="flex:1;font-size:13px">
+            <option value="">-- Chon camera --</option>
+          </select>
+          <button type="button" class="btn btn-secondary btn-sm" id="${id}-toggle"
+                  onclick="_cwToggle('${id}')">Bat camera</button>
+        </div>
+        <div id="${id}-vwrap" class="cw-video-wrap">
+          <video id="${id}-video" autoplay muted playsinline
+                 style="width:100%;height:100%;object-fit:cover;display:none;border-radius:6px;transform:scaleX(-1)"></video>
+          <div id="${id}-vmsg" class="cw-video-msg">Bam "Bat camera" de xem preview</div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:10px;align-items:center">
+          <button type="button" class="btn btn-primary" id="${id}-snap" disabled onclick="_cwSnap('${id}')">
+            Chup anh
+          </button>
+          <span id="${id}-snapcount" style="font-size:12px;color:var(--text-muted)"></span>
+        </div>
+      </div>
+
+      <!-- Shared preview + counter -->
+      <div class="preview-grid" id="${id}-preview" style="margin-top:12px"></div>
+      <div id="${id}-total" style="font-size:12px;color:var(--text-muted);margin-top:6px"></div>
+    </div>`;
+}
+
+function _cwInit(id) {
+  const fileInput = document.getElementById(`${id}-file`);
+  const zone      = document.getElementById(`${id}-zone`);
+  if (!fileInput || !zone) return;
+
+  fileInput.addEventListener('change', () => { _cwAddFiles(id, [...fileInput.files]); fileInput.value = ''; });
+  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag-over');
+    _cwAddFiles(id, [...e.dataTransfer.files].filter(f => f.type.startsWith('image/')));
+  });
+}
+
+async function _cwSwitch(id, tab) {
+  const wrap = document.getElementById(`${id}-wrap`);
+  if (!wrap) return;
+  wrap.querySelectorAll('.cw-tab').forEach(t => t.classList.toggle('active', t.dataset.cwtab === tab));
+  wrap.querySelectorAll('.cw-pane').forEach(p => p.classList.remove('active'));
+  const pane = document.getElementById(`${id}-pane-${tab}`);
+  if (pane) pane.classList.add('active');
+
+  if (tab === 'cam') await _cwEnumDevices(id);
+}
+
+async function _cwEnumDevices(id) {
+  const sel = document.getElementById(`${id}-dev`);
+  if (!sel) return;
+  try {
+    const devs = await navigator.mediaDevices.enumerateDevices();
+    const vids = devs.filter(d => d.kind === 'videoinput');
+    sel.innerHTML = vids.length
+      ? vids.map((d, i) => `<option value="${d.deviceId}">${d.label || 'Camera ' + (i + 1)}</option>`).join('')
+      : '<option value="">Khong tim thay camera</option>';
+  } catch {
+    sel.innerHTML = '<option value="">Loi: khong the quet camera</option>';
+  }
+}
+
+async function _cwToggle(id) {
+  if (_cw[id]?.stream) { _cwStop(id); return; }
+  const sel    = document.getElementById(`${id}-dev`);
+  const video  = document.getElementById(`${id}-video`);
+  const vmsg   = document.getElementById(`${id}-vmsg`);
+  const toggle = document.getElementById(`${id}-toggle`);
+  const snap   = document.getElementById(`${id}-snap`);
+  if (!video) return;
+
+  try {
+    const deviceId   = sel?.value;
+    const constraint = deviceId ? { video: { deviceId: { exact: deviceId } } } : { video: true };
+    const stream     = await navigator.mediaDevices.getUserMedia(constraint);
+    _cw[id].stream   = stream;
+    video.srcObject  = stream;
+    video.style.display = 'block';
+    if (vmsg)   vmsg.style.display   = 'none';
+    if (toggle) { toggle.textContent = 'Tat camera'; toggle.className = 'btn btn-danger btn-sm'; }
+    if (snap)   snap.disabled = false;
+    await _cwEnumDevices(id);   // re-enumerate to get device labels after permission
+  } catch(e) {
+    if (vmsg) vmsg.textContent = 'Khong the mo camera: ' + e.message;
+  }
+}
+
+function _cwStop(id) {
+  const s = _cw[id];
+  if (!s) return;
+  if (s.stream) { s.stream.getTracks().forEach(t => t.stop()); s.stream = null; }
+  const video  = document.getElementById(`${id}-video`);
+  const vmsg   = document.getElementById(`${id}-vmsg`);
+  const toggle = document.getElementById(`${id}-toggle`);
+  const snap   = document.getElementById(`${id}-snap`);
+  if (video)  { video.srcObject = null; video.style.display = 'none'; }
+  if (vmsg)   { vmsg.textContent = 'Bam "Bat camera" de xem preview'; vmsg.style.display = ''; }
+  if (toggle) { toggle.textContent = 'Bat camera'; toggle.className = 'btn btn-secondary btn-sm'; }
+  if (snap)   snap.disabled = true;
+}
+
+function _cwSnap(id) {
+  const video = document.getElementById(`${id}-video`);
+  const count = document.getElementById(`${id}-snapcount`);
+  if (!video || !_cw[id]?.stream) return;
+
+  const canvas  = document.createElement('canvas');
+  canvas.width  = video.videoWidth  || 640;
+  canvas.height = video.videoHeight || 480;
+  const ctx = canvas.getContext('2d');
+  ctx.save();
+  ctx.scale(-1, 1);
+  ctx.drawImage(video, -canvas.width, 0);   // draw un-mirrored (correct orientation)
+  ctx.restore();
+
+  canvas.toBlob(blob => {
+    if (!blob) return;
+    const ts   = Date.now();
+    const file = new File([blob], `cam_${ts}.jpg`, { type: 'image/jpeg' });
+    _cwAddFiles(id, [file]);
+    const snapped = (_cw[id]?.files || []).filter(f => f.name.startsWith('cam_')).length;
+    if (count) count.textContent = snapped + ' anh da chup';
+  }, 'image/jpeg', 0.92);
+}
+
+function _cwAddFiles(id, newFiles) {
+  if (!_cw[id]) return;
+  _cw[id].files = [..._cw[id].files, ...newFiles].slice(0, 15);
+  _cwRenderPreview(id);
+}
+
+function _cwRemove(id, i) {
+  if (!_cw[id]) return;
+  _cw[id].files.splice(i, 1);
+  _cwRenderPreview(id);
+}
+
+function _cwRenderPreview(id) {
+  const grid  = document.getElementById(`${id}-preview`);
+  const total = document.getElementById(`${id}-total`);
+  if (!grid) return;
+  const files = _cw[id]?.files || [];
+
+  grid.innerHTML = files.map((f, i) => {
+    const url = URL.createObjectURL(f);
+    const isCapture = f.name.startsWith('cam_');
+    return `<div class="preview-item">
+      <img src="${url}" alt="${f.name}" />
+      ${isCapture ? '<div class="cw-cam-badge">CAM</div>' : ''}
+      <button type="button" class="rm-btn" onclick="_cwRemove('${id}',${i})">&#x2715;</button>
+    </div>`;
+  }).join('');
+
+  if (total) total.textContent = files.length ? `${files.length} anh (upload + camera)` : '';
+}
+
+function _cwClear(id) {
+  _cwStop(id);
+  if (_cw[id]) { _cw[id].files = []; _cwRenderPreview(id); }
+}
+
+function _cwGetFiles(id) {
+  return _cw[id]?.files || [];
+}
+
 // ── Shared state ─────────────────────────────────────────────
 const _pm = {
   all: [], filtered: [],
@@ -353,16 +549,10 @@ function _pdTabPhotos(person, images) {
     <div class="pm-detail-section">
       <div class="pm-section-divider"><span>${images.length ? 'Cap nhat / Bo sung them anh' : 'Dang ky khuon mat'}</span></div>
       <p style="font-size:12px;color:var(--text-muted);margin:10px 0">
-        Upload them anh se tao lai template moi (trung binh cac embeddings cu + moi).
-        Nen dung 2-5 anh ro mat, nhieu goc do.
+        Upload hoac chup truc tiep bang camera. Se tao lai template moi (trung binh embeddings cu + moi).
       </p>
-      <div class="upload-zone pm-upload-zone" id="pd-upload-zone" style="padding:16px">
-        <input type="file" id="pd-upload-files" accept="image/*" multiple />
-        <div class="upload-icon-placeholder" style="width:28px;height:28px;margin-bottom:6px"></div>
-        <div class="upload-text" style="font-size:12px"><strong>Chon anh</strong> hoac keo tha vao day</div>
-      </div>
-      <div class="preview-grid" id="pd-upload-preview" style="margin-top:10px"></div>
-      <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+      ${_cwCreate('pdu')}
+      <div style="margin-top:14px;display:flex;gap:8px;align-items:center">
         <button class="btn btn-primary" id="pd-upload-btn"
                 onclick="_pdUpload('${pid}')">Dang ky / Cap nhat khuon mat</button>
         <span id="pd-upload-status" style="font-size:12px;color:var(--text-muted)"></span>
@@ -371,53 +561,31 @@ function _pdTabPhotos(person, images) {
 }
 
 function _initPhotoUpload() {
-  _uploadFiles = [];
-  const inp  = el('pd-upload-files');
-  const zone = el('pd-upload-zone');
-  if (!inp || !zone) return;
-  inp.addEventListener('change', () => { _uploadAdd([...inp.files]); inp.value=''; });
-  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
-  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
-  zone.addEventListener('drop', e => {
-    e.preventDefault(); zone.classList.remove('drag-over');
-    _uploadAdd([...e.dataTransfer.files].filter(f=>f.type.startsWith('image/')));
-  });
+  setTimeout(() => _cwInit('pdu'), 50);
 }
-
-function _uploadAdd(files) {
-  _uploadFiles = [..._uploadFiles, ...files].slice(0, 10);
-  const grid = el('pd-upload-preview');
-  if (!grid) return;
-  grid.innerHTML = _uploadFiles.map((f,i) => `
-    <div class="preview-item">
-      <img src="${URL.createObjectURL(f)}" alt="${f.name}" />
-      <button class="rm-btn" onclick="_uploadRm(${i})">&#x2715;</button>
-    </div>`).join('');
-}
-function _uploadRm(i) { _uploadFiles.splice(i,1); _uploadAdd([]); }
 
 async function _pdUpload(pid) {
-  if (!_uploadFiles.length) { Toast.warning('Chon it nhat 1 anh'); return; }
+  const files  = _cwGetFiles('pdu');
+  if (!files.length) { Toast.warning('Chon hoac chup it nhat 1 anh'); return; }
+
   const btn    = el('pd-upload-btn');
   const status = el('pd-upload-status');
   btn.disabled = true; btn.textContent = 'Dang xu ly...';
   if (status) status.textContent = '';
 
-  const fd = new FormData();
-  // Get person info from hero card
   const person = el('pd-body')?._person || {};
-  fd.append('person_id', pid);
+  const fd     = new FormData();
+  fd.append('person_id',    pid);
   fd.append('full_name',    person.full_name    || '');
   fd.append('student_code', person.student_code || '');
   fd.append('class_name',   person.class_name   || '');
-  _uploadFiles.forEach(f => fd.append('images', f, f.name));
+  files.forEach(f => fd.append('images', f, f.name));
 
   try {
     const res = await API.post('/face/register', fd);
     Toast.success(`Da cap nhat ${res.num_embeddings_created} anh khuon mat`);
     if (status) status.textContent = `${res.num_embeddings_created} embeddings da tao`;
-    _uploadFiles = [];
-    // Reload detail to show new images
+    _cwClear('pdu');
     renderPeopleDetail(pid);
   } catch(err) {
     Toast.error(err.message);
@@ -603,14 +771,9 @@ function _pmOpenAdd() {
         <span>Dang ky khuon mat (tuy chon)</span>
       </div>
       <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">
-        Upload 2-5 anh ro mat. Co the bo qua va dang ky sau.
+        Upload hoac chup truc tiep. Co the bo qua va dang ky sau.
       </p>
-      <div class="upload-zone pm-upload-zone" id="pma-zone" style="padding:18px">
-        <input type="file" id="pma-files" accept="image/*" multiple />
-        <div class="upload-icon-placeholder" style="width:28px;height:28px;margin-bottom:6px"></div>
-        <div class="upload-text" style="font-size:12px"><strong>Chon anh</strong> hoac keo tha</div>
-      </div>
-      <div class="preview-grid" id="pma-preview" style="margin-top:10px"></div>
+      ${_cwCreate('pma')}
 
       <div class="btn-group" style="margin-top:16px">
         <button class="btn btn-primary" type="submit" id="pma-btn">Them nguoi</button>
@@ -620,68 +783,45 @@ function _pmOpenAdd() {
     </form>`;
 
   el('pm-add-modal').style.display = 'flex';
-  _initAddDrop();
+  setTimeout(() => _cwInit('pma'), 50);
 }
-
-function _initAddDrop() {
-  const inp  = el('pma-files');
-  const zone = el('pma-zone');
-  if (!inp || !zone) return;
-  inp.addEventListener('change', () => { _addFilesAdd([...inp.files]); inp.value=''; });
-  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
-  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
-  zone.addEventListener('drop', e => {
-    e.preventDefault(); zone.classList.remove('drag-over');
-    _addFilesAdd([...e.dataTransfer.files].filter(f=>f.type.startsWith('image/')));
-  });
-}
-
-function _addFilesAdd(files) {
-  _addFiles = [..._addFiles, ...files].slice(0, 10);
-  const grid = el('pma-preview');
-  if (!grid) return;
-  grid.innerHTML = _addFiles.map((f,i) => `
-    <div class="preview-item">
-      <img src="${URL.createObjectURL(f)}" alt="${f.name}" />
-      <button class="rm-btn" onclick="_addFileRm(${i})">&#x2715;</button>
-    </div>`).join('');
-}
-function _addFileRm(i) { _addFiles.splice(i,1); _addFilesAdd([]); }
 
 async function _pmSaveAdd(e) {
   e.preventDefault();
-  const btn = el('pma-btn');
-  const pid = el('pma-id').value.trim();
+  const btn  = el('pma-btn');
+  const pid  = el('pma-id').value.trim();
   if (!pid) { Toast.error('Person ID khong duoc rong'); return false; }
-  btn.disabled=true; btn.textContent='Dang them...';
+  btn.disabled = true; btn.textContent = 'Dang them...';
 
   try {
-    // Step 1: create person
     await API.post('/people', {
-      person_id: pid, full_name: el('pma-name').value.trim(),
-      student_code: el('pma-code').value.trim(), class_name: el('pma-class').value.trim(),
-      status: el('pma-status').value,
+      person_id:    pid,
+      full_name:    el('pma-name').value.trim(),
+      student_code: el('pma-code').value.trim(),
+      class_name:   el('pma-class').value.trim(),
+      status:       el('pma-status').value,
     });
 
-    // Step 2: register face if images provided
-    if (_addFiles.length > 0) {
+    const files = _cwGetFiles('pma');
+    if (files.length > 0) {
       btn.textContent = 'Dang tao template...';
       const fd = new FormData();
-      fd.append('person_id', pid);
-      fd.append('full_name', el('pma-name').value.trim());
+      fd.append('person_id',    pid);
+      fd.append('full_name',    el('pma-name').value.trim());
       fd.append('student_code', el('pma-code').value.trim());
-      fd.append('class_name', el('pma-class').value.trim());
-      _addFiles.forEach(f => fd.append('images', f, f.name));
+      fd.append('class_name',   el('pma-class').value.trim());
+      files.forEach(f => fd.append('images', f, f.name));
       const res = await API.post('/face/register', fd);
       Toast.success(`Da them ${pid} + ${res.num_embeddings_created} anh khuon mat`);
     } else {
       Toast.success('Da them: ' + pid);
     }
 
-    _pmModalClose(null,'pm-add-modal');
+    _cwClear('pma');
+    _pmModalClose(null, 'pm-add-modal');
     _pmLoad();
   } catch(err) { Toast.error(err.message); }
-  finally { btn.disabled=false; btn.textContent='Them nguoi'; }
+  finally { btn.disabled = false; btn.textContent = 'Them nguoi'; }
   return false;
 }
 
@@ -759,6 +899,9 @@ function _pmPS(n)   { _pm.pageSize=n; _pm.page=1; _pmRenderTable(); }
 function _pmModalClose(e, id) {
   if (e && e.target !== el(id)) return;
   const m = el(id); if(m) m.style.display='none';
+  // Stop any running camera streams when modal closes
+  if (id === 'pm-add-modal') _cwStop('pma');
+  if (id === 'pd-edit-modal' || id === 'pm-add-modal') _cwStop('pdu');
 }
 function _pmBack() {
   history.pushState(null,'','#people');

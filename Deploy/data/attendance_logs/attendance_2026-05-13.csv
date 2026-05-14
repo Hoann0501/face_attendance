@@ -1,3 +1,0 @@
-﻿timestamp,person_id,full_name,student_code,class_name,attendance_status,similarity,liveness_status,face_real_score,full_real_score
-2026-05-13 10:44:25,person_001,Hoan,SV001,CNTT01,ATTENDED,0.8488,REAL_ATTENDANCE_OK,1.0,0.8677
-2026-05-13 10:58:54,person_004,Nguyen Van A,SE1234456,SE12345,ATTENDED,0.9189,REAL_ATTENDANCE_OK,0.9999,0.9933

@@ -1,2 +1,2 @@
 ﻿date,person_id,full_name,student_code,class_name,check_in_time,check_out_time,check_in_similarity,check_out_similarity,check_in_liveness_status,check_out_liveness_status,face_real_score,full_real_score,attendance_status,created_at,updated_at
-2026-05-14,person_004,Nguyen Van A,SE1234456,SE12345,2026-05-14 02:14:34,,0.8773,,REAL_ATTENDANCE_OK,,1.0,0.9998,CHECKED_IN,2026-05-14 02:14:34,2026-05-14 02:14:34
+2026-05-14,person_001,hoan,se123456,AI19,2026-05-14 04:15:43,2026-05-14 04:15:48,0.9121,0.93,REAL_ATTENDANCE_OK,REAL_ATTENDANCE_OK,1.0,1.0,CHECKED_OUT,2026-05-14 04:15:43,2026-05-14 04:15:48
