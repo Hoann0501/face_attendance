@@ -1,10 +1,18 @@
-from fastapi import APIRouter, HTTPException, Path as FPath
+from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import FileResponse
+from typing import Optional
+
 from backend.schemas import PersonCreate, PersonUpdate, PersonStatusPatch, PersonOut
 from backend.services import person_service as svc
 from backend.services.face_service import get_face_verifier
+from backend.config import ENROLL_IMAGES_DIR
 
 router = APIRouter(prefix="/people", tags=["people"])
 
+_IMG_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+
+
+# ── helpers ──────────────────────────────────────────────────────────────────
 
 def _with_template(person: dict) -> dict:
     try:
@@ -15,13 +23,71 @@ def _with_template(person: dict) -> dict:
     return person
 
 
-@router.get("", response_model=list[PersonOut])
+# ── list ─────────────────────────────────────────────────────────────────────
+
+@router.get("")
 def list_people():
     people = svc.get_all_people()
-    return [_with_template(p) for p in people]
+
+    # Enrich with last attendance info (scan last 30 days)
+    try:
+        from backend.services.attendance_service import get_recent_attendance_summary
+        att_summary = get_recent_attendance_summary(days=30)
+    except Exception:
+        att_summary = {}
+
+    result = []
+    for p in people:
+        _with_template(p)
+        att = att_summary.get(p["person_id"], {})
+        p["last_check_in"]  = att.get("last_check_in",  "")
+        p["last_check_out"] = att.get("last_check_out", "")
+        p["last_att_date"]  = att.get("last_date",      "")
+        result.append(p)
+
+    return result
 
 
-@router.get("/{person_id}", response_model=PersonOut)
+# ── person detail ─────────────────────────────────────────────────────────────
+
+@router.get("/{person_id}/attendance")
+def person_attendance(
+    person_id: str,
+    days: int = Query(default=7, ge=0),
+):
+    """Attendance history for one person. days=0 means all records."""
+    from backend.services.attendance_service import get_person_attendance_history
+    records = get_person_attendance_history(person_id, days=days)
+    return {"person_id": person_id, "days": days, "records": records, "count": len(records)}
+
+
+@router.get("/{person_id}/enroll-images")
+def list_enroll_images(person_id: str):
+    """List enroll images for a person."""
+    enroll_dir = ENROLL_IMAGES_DIR / person_id
+    images = []
+    if enroll_dir.exists():
+        for f in sorted(enroll_dir.iterdir()):
+            if f.suffix.lower() in _IMG_EXTS:
+                images.append({
+                    "filename": f.name,
+                    "url": f"/people/{person_id}/enroll-images/{f.name}",
+                })
+    return {"person_id": person_id, "images": images, "count": len(images)}
+
+
+@router.get("/{person_id}/enroll-images/{filename}")
+def serve_enroll_image(person_id: str, filename: str):
+    """Serve a single enroll image file."""
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    img_path = ENROLL_IMAGES_DIR / person_id / filename
+    if not img_path.exists():
+        raise HTTPException(status_code=404, detail="Image not found")
+    return FileResponse(str(img_path), media_type="image/jpeg")
+
+
+@router.get("/{person_id}")
 def get_person(person_id: str):
     person = svc.get_person(person_id)
     if not person:
@@ -29,7 +95,9 @@ def get_person(person_id: str):
     return _with_template(person)
 
 
-@router.post("", response_model=PersonOut, status_code=201)
+# ── CRUD ─────────────────────────────────────────────────────────────────────
+
+@router.post("", status_code=201)
 def create_person(body: PersonCreate):
     existing = svc.get_person(body.person_id)
     if existing:
@@ -44,7 +112,7 @@ def create_person(body: PersonCreate):
     return _with_template(person)
 
 
-@router.put("/{person_id}", response_model=PersonOut)
+@router.put("/{person_id}")
 def update_person(person_id: str, body: PersonUpdate):
     existing = svc.get_person(person_id)
     if not existing:
@@ -59,7 +127,7 @@ def update_person(person_id: str, body: PersonUpdate):
     return _with_template(person)
 
 
-@router.patch("/{person_id}/status", response_model=PersonOut)
+@router.patch("/{person_id}/status")
 def patch_status(person_id: str, body: PersonStatusPatch):
     existing = svc.get_person(person_id)
     if not existing:

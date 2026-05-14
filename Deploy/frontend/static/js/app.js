@@ -57,17 +57,30 @@ function setContent(html) {
 
 // ---------- Router ----------
 const PAGES = {
-  dashboard:       { title: 'Dashboard',            render: renderDashboard },
-  people:          { title: 'Quan ly nguoi',         render: renderPeople },
-  register:        { title: 'Dang ky khuon mat',     render: renderRegister },
-  'face-search':   { title: 'Tim kiem / Xac minh',   render: renderFaceSearch },
-  'face-analysis': { title: 'Phan tich anh',         render: renderFaceAnalysis },
-  attendance:      { title: 'Bao cao diem danh',     render: renderAttendance },
-  pipeline:        { title: 'Pipeline Report',       render: renderPipeline },
+  dashboard:       { title: 'Dashboard',           render: renderDashboard },
+  people:          { title: 'Quan ly nguoi',        render: renderPeople },
+  'face-search':   { title: 'Tim kiem / Xac minh',  render: renderFaceSearch },
+  'face-analysis': { title: 'Phan tich anh',        render: renderFaceAnalysis },
+  attendance:      { title: 'Bao cao diem danh',    render: renderAttendance },
+  pipeline:        { title: 'Pipeline Report',      render: renderPipeline },
+  // register still accessible as internal page (no nav item)
+  register:        { title: 'Dang ky khuon mat',    render: renderRegister },
 };
 
 function navigate(hash) {
-  const key = hash.replace(/^#/, '') || 'dashboard';
+  const raw = (hash.replace(/^#/, '') || 'dashboard');
+
+  // Sub-route: #people/person_003
+  if (raw.startsWith('people/')) {
+    const pid = decodeURIComponent(raw.slice(7));
+    qsa('.nav-item').forEach(a => a.classList.toggle('active', a.dataset.page === 'people'));
+    el('page-title').textContent = 'Chi tiet nguoi';
+    setContent('<div class="loading-spinner"><div class="spinner"></div></div>');
+    if (typeof renderPeopleDetail === 'function') renderPeopleDetail(pid);
+    return;
+  }
+
+  const key  = raw;
   const page = PAGES[key] || PAGES['dashboard'];
 
   // Update active nav

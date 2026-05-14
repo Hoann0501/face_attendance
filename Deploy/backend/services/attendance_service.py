@@ -105,6 +105,59 @@ def _append_recent_event(event: dict) -> None:
     tmp.replace(RECENT_EVENTS_PATH)
 
 
+def get_recent_attendance_summary(days: int = 30) -> dict[str, dict]:
+    """
+    Scan the last `days` attendance files and return the most recent record
+    per person:  {person_id: {last_check_in, last_check_out, last_date}}
+    """
+    from datetime import timedelta, date as _date
+    summary: dict[str, dict] = {}
+    today = _date.today()
+    for i in range(days):
+        d   = (today - timedelta(days=i)).strftime("%Y-%m-%d")
+        path = _attendance_path(d)
+        if not path.exists():
+            continue
+        df = _load_day(d)
+        for _, row in df.iterrows():
+            pid = str(row.get("person_id", "")).strip()
+            if not pid or pid in summary:
+                continue          # first hit = most recent (iterating newest first)
+            summary[pid] = {
+                "last_check_in":  str(row.get("check_in_time",  "") or ""),
+                "last_check_out": str(row.get("check_out_time", "") or ""),
+                "last_date":      d,
+            }
+    return summary
+
+
+def get_person_attendance_history(person_id: str, days: int = 7) -> list[dict]:
+    """
+    Return attendance records for one person over the past `days` days.
+    days=0 means all records ever found.
+    """
+    from datetime import timedelta, date as _date
+    records: list[dict] = []
+
+    if days <= 0:
+        att_files  = sorted(ATTENDANCE_DIR.glob("attendance_*.csv"), reverse=True)
+        date_strs  = [f.stem.replace("attendance_", "") for f in att_files]
+    else:
+        today      = _date.today()
+        date_strs  = [(today - timedelta(days=i)).strftime("%Y-%m-%d")
+                      for i in range(days)]
+
+    for date_str in date_strs:
+        df   = _load_day(date_str)
+        mask = df["person_id"] == person_id
+        if mask.any():
+            row = df[mask].iloc[0].to_dict()
+            row.setdefault("date", date_str)
+            records.append(row)
+
+    return records
+
+
 def get_recent_events(limit: int = 20) -> list[dict]:
     if not RECENT_EVENTS_PATH.exists():
         return []

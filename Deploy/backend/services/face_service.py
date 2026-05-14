@@ -11,6 +11,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
+import time as _time
 from backend.config import (
     TEMPLATES_PATH,
     VERIFY_THRESHOLD,
@@ -59,7 +60,11 @@ def register_face(
     verifier = get_face_verifier()
     embeddings = []
 
-    for img_bytes in image_bytes_list:
+    # Save enroll images to data/enroll_images/{person_id}/
+    person_enroll_dir = ENROLL_IMAGES_DIR / person_id
+    person_enroll_dir.mkdir(parents=True, exist_ok=True)
+
+    for idx, img_bytes in enumerate(image_bytes_list, 1):
         try:
             pil_img = bytes_to_pil(img_bytes)
         except Exception:
@@ -68,6 +73,13 @@ def register_face(
         emb, info = verifier.extract_embedding_pil(pil_img)
         if info["ok"] and emb is not None:
             embeddings.append(emb)
+            # Save the image file
+            try:
+                ts       = _time.strftime("%Y%m%d_%H%M%S")
+                img_path = person_enroll_dir / f"enroll_{idx:02d}_{ts}.jpg"
+                pil_img.save(str(img_path), "JPEG", quality=92)
+            except Exception as e:
+                print(f"[FaceService] Warning: could not save enroll image: {e}")
 
     if not embeddings:
         return {
