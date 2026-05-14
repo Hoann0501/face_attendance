@@ -2,11 +2,26 @@
 const API = (() => {
   const base = window.location.origin;
 
-  async function request(method, path, body) {
+  async function request(method, path, body, timeoutMs = 8000) {
     const isForm = body instanceof FormData;
-    const opts = { method, headers: isForm ? {} : { 'Content-Type': 'application/json' } };
+    const opts   = { method, headers: isForm ? {} : { 'Content-Type': 'application/json' } };
     if (body) opts.body = isForm ? body : JSON.stringify(body);
-    const res = await fetch(base + path, opts);
+
+    // Abort controller for timeout
+    const ctrl = new AbortController();
+    opts.signal = ctrl.signal;
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+
+    let res;
+    try {
+      res = await fetch(base + path, opts);
+    } catch (err) {
+      if (err.name === 'AbortError') throw new Error(`Request timed out (${timeoutMs / 1000}s)`);
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
+
     if (!res.ok) {
       let msg = `HTTP ${res.status}`;
       try { const j = await res.json(); msg = j.detail || j.message || msg; } catch {}

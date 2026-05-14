@@ -1,5 +1,65 @@
 [
   {
+    "event_type": "CHECK_IN",
+    "event_time": "2026-05-14 02:14:34",
+    "person_id": "person_004",
+    "full_name": "Nguyen Van A",
+    "student_code": "SE1234456",
+    "similarity": 0.8773,
+    "liveness_status": "REAL_ATTENDANCE_OK",
+    "attendance_status": "CHECKED_IN"
+  },
+  {
+    "event_type": "CHECK_IN",
+    "event_time": "2026-05-14 02:14:12",
+    "person_id": "person_004",
+    "full_name": "Nguyen Van A",
+    "student_code": "SE1234456",
+    "similarity": 0.8947,
+    "liveness_status": "REAL_ATTENDANCE_OK",
+    "attendance_status": "CHECKED_IN"
+  },
+  {
+    "event_type": "CHECK_IN",
+    "event_time": "2026-05-14 02:13:35",
+    "person_id": "person_004",
+    "full_name": "Nguyen Van A",
+    "student_code": "SE1234456",
+    "similarity": 0.874,
+    "liveness_status": "REAL_ATTENDANCE_OK",
+    "attendance_status": "CHECKED_IN"
+  },
+  {
+    "event_type": "CHECK_IN",
+    "event_time": "2026-05-14 01:55:56",
+    "person_id": "05",
+    "full_name": "hieu",
+    "student_code": "SV12345",
+    "similarity": 0.7111,
+    "liveness_status": "REAL_ATTENDANCE_OK",
+    "attendance_status": "CHECKED_IN"
+  },
+  {
+    "event_type": "CHECK_IN",
+    "event_time": "2026-05-14 01:53:53",
+    "person_id": "person_003",
+    "full_name": "thinh",
+    "student_code": "SV003",
+    "similarity": 0.8883,
+    "liveness_status": "REAL_ATTENDANCE_OK",
+    "attendance_status": "CHECKED_IN"
+  },
+  {
+    "event_type": "CHECK_IN",
+    "event_time": "2026-05-14 01:52:55",
+    "person_id": "person_004",
+    "full_name": "Nguyen Van A",
+    "student_code": "SE1234456",
+    "similarity": 0.8898,
+    "liveness_status": "REAL_ATTENDANCE_OK",
+    "attendance_status": "CHECKED_IN"
+  },
+  {
     "event_type": "CHECK_OUT",
     "event_time": "2026-05-13 10:14:33",
     "person_id": "person_004",

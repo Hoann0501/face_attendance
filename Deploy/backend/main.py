@@ -18,7 +18,8 @@ from backend.api.people import router as people_router
 from backend.api.attendance import router as attendance_router
 from backend.api.face import router as face_router
 
-STATIC_DIR = Path(__file__).parent.parent / "frontend" / "static"
+STATIC_DIR    = Path(__file__).parent.parent / "frontend" / "static"
+CAPTURES_DIR  = Path(__file__).parent.parent / "data" / "face_captures"
 
 # ---------------------------------------------------------------------------
 # App
@@ -50,6 +51,9 @@ app.include_router(face_router)
 # Serve static frontend
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static_files")
+
+# face_captures directory is served via /attendance/captures/image endpoint (see attendance.py)
+CAPTURES_DIR.mkdir(parents=True, exist_ok=True)
 
 @app.get("/", include_in_schema=False)
 def serve_spa():

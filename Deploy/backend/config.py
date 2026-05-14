@@ -29,6 +29,8 @@ RUNTIME_DIR           = DATA_DIR / "runtime"
 PEOPLE_CSV_PATH       = PEOPLE_DIR / "people.csv"
 RECENT_EVENTS_PATH    = RUNTIME_DIR / "recent_events.json"
 
+FACE_CAPTURES_DIR     = DATA_DIR / "face_captures"
+
 # ---------------------------------------------------------------------------
 # Model paths
 # ---------------------------------------------------------------------------
@@ -88,5 +90,6 @@ def ensure_dirs():
         REPORTS_DIR,
         ENROLL_IMAGES_DIR,
         RUNTIME_DIR,
+        FACE_CAPTURES_DIR,
     ]:
         d.mkdir(parents=True, exist_ok=True)

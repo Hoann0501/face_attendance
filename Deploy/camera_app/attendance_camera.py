@@ -39,6 +39,7 @@ from camera_app.camera_config import (
 )
 from core.antispoof import AntiSpoofService
 from core.face_verifier import FaceVerifier
+from backend.config import FACE_CAPTURES_DIR
 
 
 # ────────────────────────────────────────────────────────────
@@ -56,6 +57,120 @@ COL_GRAY    = (120, 120, 120)
 
 MODE_LABELS = { 'checkin': 'CHECK-IN', 'checkout': 'CHECK-OUT' }
 MODE_COLORS = { 'checkin': COL_GREEN, 'checkout': COL_BLUE }
+
+
+# ────────────────────────────────────────────────────────────
+# Sharp-frame buffer  — pick the clearest frame to capture
+# ────────────────────────────────────────────────────────────
+
+class SharpFrameBuffer:
+    """
+    Rolling buffer of recent frames.
+    Scores each frame by Laplacian variance on the face crop
+    (higher = sharper).  When saving, returns the sharpest frame
+    seen in the last `maxlen` frames instead of the current one.
+    """
+
+    def __init__(self, maxlen: int = 20):
+        self.maxlen = maxlen
+        self._buf: list[tuple[np.ndarray, tuple, float]] = []  # (frame, bbox, score)
+
+    def push(self, frame_bgr: np.ndarray, bbox: tuple | None) -> None:
+        if bbox is None:
+            return
+        x1, y1, x2, y2 = bbox
+        face = frame_bgr[y1:y2, x1:x2]
+        if face.size == 0:
+            return
+        gray  = cv2.cvtColor(face, cv2.COLOR_BGR2GRAY)
+        score = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+
+        self._buf.append((frame_bgr.copy(), bbox, score))
+        if len(self._buf) > self.maxlen:
+            self._buf.pop(0)
+
+    def get_sharpest(self) -> tuple[np.ndarray | None, tuple | None, float]:
+        """Return (frame, bbox, score) of the sharpest buffered frame."""
+        if not self._buf:
+            return None, None, 0.0
+        best = max(self._buf, key=lambda x: x[2])
+        return best[0], best[1], best[2]
+
+    def clear(self) -> None:
+        self._buf.clear()
+
+    def __len__(self) -> int:
+        return len(self._buf)
+
+
+# ────────────────────────────────────────────────────────────
+# Face capture save
+# ────────────────────────────────────────────────────────────
+
+def _crop_face(frame_bgr: np.ndarray, bbox: tuple, margin: float = 0.45) -> np.ndarray | None:
+    """Crop face with margin.  Returns BGR crop or None."""
+    h, w = frame_bgr.shape[:2]
+    x1, y1, x2, y2 = bbox
+    bw, bh = x2 - x1, y2 - y1
+    mx, my = int(bw * margin), int(bh * margin)
+    cx1, cy1 = max(0, x1 - mx), max(0, y1 - my)
+    cx2, cy2 = min(w, x2 + mx), min(h, y2 + my)
+    crop = frame_bgr[cy1:cy2, cx1:cx2]
+    return crop if crop.size > 0 else None
+
+
+def _save_face_capture(
+    frame_bgr: np.ndarray,
+    bbox: tuple,
+    person_id: str,
+    mode: str,
+    sharp_buffer: SharpFrameBuffer | None = None,
+) -> str | None:
+    """
+    Save the sharpest available face crop to:
+      data/face_captures/{YYYY-MM-DD}/{checkin|checkout}/{person_id}_{YYYY-MM-DD}_{HH-MM-SS}_{mode}.jpg
+
+    If sharp_buffer is provided, uses the sharpest frame from the buffer;
+    otherwise falls back to the current frame.
+    """
+    try:
+        # Pick the sharpest frame
+        if sharp_buffer and len(sharp_buffer) > 0:
+            best_frame, best_bbox, score = sharp_buffer.get_sharpest()
+            use_frame = best_frame if best_frame is not None else frame_bgr
+            use_bbox  = best_bbox  if best_bbox  is not None else bbox
+            print(f"[Camera] Capture: sharpest frame score={score:.1f} (buffer={len(sharp_buffer)} frames)")
+        else:
+            use_frame = frame_bgr
+            use_bbox  = bbox
+
+        crop = _crop_face(use_frame, use_bbox, margin=0.45)
+        if crop is None:
+            return None
+
+        # Optional: mild unsharp mask to further enhance edges
+        crop = _unsharp(crop, strength=0.4)
+
+        now      = time.strftime("%Y-%m-%d_%H-%M-%S")
+        date_str = time.strftime("%Y-%m-%d")
+        filename = f"{person_id}_{now}_{mode}.jpg"
+
+        save_dir  = FACE_CAPTURES_DIR / date_str / mode
+        save_dir.mkdir(parents=True, exist_ok=True)
+        save_path = save_dir / filename
+
+        cv2.imwrite(str(save_path), crop, [cv2.IMWRITE_JPEG_QUALITY, 95])
+        return str(save_path)
+    except Exception as e:
+        print(f"[Camera] Warning: could not save face capture: {e}")
+        return None
+
+
+def _unsharp(img: np.ndarray, strength: float = 0.4, blur_sigma: float = 1.0) -> np.ndarray:
+    """Mild unsharp mask to recover edge detail lost during camera motion."""
+    blurred = cv2.GaussianBlur(img, (0, 0), blur_sigma)
+    sharp   = cv2.addWeighted(img, 1.0 + strength, blurred, -strength, 0)
+    return sharp
 
 
 # ────────────────────────────────────────────────────────────
@@ -330,9 +445,10 @@ def run(mode: str, cam_idx: int):
     haar = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
     print("[Camera] Ready.")
 
-    state = _IdentState()
+    state        = _IdentState()
     spoof_status = "WAITING"
     last_bbox: tuple | None = None
+    sharp_buf    = SharpFrameBuffer(maxlen=20)  # accumulate recent clear frames
 
     while True:
         ret, frame = cap.read()
@@ -349,15 +465,20 @@ def run(mode: str, cam_idx: int):
             last_bbox    = bbox
             frame_rgb    = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             spoof_status = spoof.update(face_crop_rgb, frame_rgb)
+
+            # Accumulate frames during CHECKING + REAL for best-frame selection
+            if spoof_status in ("CHECKING", "REAL_ATTENDANCE_OK"):
+                sharp_buf.push(frame, bbox)
         else:
             spoof.reset_buffer()
             spoof_status = "NO_FACE"
             last_bbox    = None
 
-        # Clear name tag the moment a fake face or no face is detected –
-        # prevents the previous person's name from "sticking" on a spoofed image.
+        # Clear name tag + discard spoofed frames
         if spoof_status in ("FAKE_OR_SUSPECT", "NO_FACE"):
             state.show_tag = False
+            if spoof_status == "FAKE_OR_SUSPECT":
+                sharp_buf.clear()
 
         # ── Identity + attendance ─────────────────────────────
         if spoof_status == "REAL_ATTENDANCE_OK" and not state.in_cooldown():
@@ -395,6 +516,15 @@ def run(mode: str, cam_idx: int):
                             label = "Check-In OK" if action == "CHECKED_IN" else "Check-Out OK"
                             state.set(label, COL_GREEN, f"{name}  |  {code}",
                                       name=name, sub=f"sim {best_sim:.3f}", tag_color=COL_GREEN, show_tag=True)
+                            # Save the sharpest buffered frame instead of current frame
+                            if last_bbox:
+                                saved = _save_face_capture(
+                                    frame, last_bbox, best_pid, mode,
+                                    sharp_buffer=sharp_buf,
+                                )
+                                if saved:
+                                    print(f"[Camera] Saved capture: {saved}")
+                                sharp_buf.clear()  # reset for next person
                         elif action == "ALREADY_CHECKED_IN":
                             state.set("Already checked in today", COL_YELLOW,
                                       name, name=name, sub=code, tag_color=COL_YELLOW, show_tag=True)
