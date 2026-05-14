@@ -1,5 +1,25 @@
 [
   {
+    "event_type": "CHECK_IN",
+    "event_time": "2026-05-14 04:47:09",
+    "person_id": "person_002",
+    "full_name": "Hieu",
+    "student_code": "SV1234",
+    "similarity": 0.7547,
+    "liveness_status": "REAL_ATTENDANCE_OK",
+    "attendance_status": "CHECKED_IN"
+  },
+  {
+    "event_type": "CHECK_IN",
+    "event_time": "2026-05-14 04:46:31",
+    "person_id": "person_001",
+    "full_name": "hoan",
+    "student_code": "se123456",
+    "similarity": 0.8811,
+    "liveness_status": "REAL_ATTENDANCE_OK",
+    "attendance_status": "CHECKED_IN"
+  },
+  {
     "event_type": "CHECK_OUT",
     "event_time": "2026-05-14 04:15:48",
     "person_id": "person_001",

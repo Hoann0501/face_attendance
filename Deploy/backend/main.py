@@ -1,10 +1,16 @@
 """
 Face Attendance Deploy – FastAPI backend entry point.
 
-Run with:
+Run with (chỉ máy local):
     python -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
+
+Demo cùng mạng LAN (điện thoại / laptop khác vào web):
+    python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+    # Rồi mở http://<IPv4-máy-chạy-server>:8000 — có thể cần mở Firewall Windows cho cổng 8000.
 """
 
+import os
+import socket
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -63,10 +69,30 @@ def serve_spa():
 # Startup
 # ---------------------------------------------------------------------------
 
+def _guess_lan_ipv4() -> str | None:
+    """Best-effort LAN address for demo links (UDP socket; no traffic sent)."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(0.25)
+        s.connect(("203.0.113.1", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        if ip.startswith("127."):
+            return None
+        return ip
+    except OSError:
+        return None
+
+
 @app.on_event("startup")
 def startup_event():
+    port = int(os.getenv("BACKEND_PORT", "8000"))
     print("[Backend] Initializing database ...")
     init_db()
-    print(f"[Backend] Frontend: http://127.0.0.1:8000")
-    print("[Backend] API docs: http://127.0.0.1:8000/docs")
+    print(f"[Backend] Local:   http://127.0.0.1:{port}/")
+    lan = _guess_lan_ipv4()
+    if lan:
+        print(f"[Backend] LAN:     http://{lan}:{port}/  (may khac cung Wi-Fi mo URL nay)")
+        print("[Backend] Neu khong vao duoc: mo Firewall Windows cho python.exe hoac cong", port)
+    print(f"[Backend] API docs: http://127.0.0.1:{port}/docs")
     print("[Backend] Ready.")

@@ -103,7 +103,7 @@ cd Deploy
 python scripts/init_deploy.py
 
 # Bước 3: Chạy backend + web
-scripts\run_backend.bat        # http://127.0.0.1:8000
+scripts\run_backend.bat        # http://127.0.0.1:8000 — may khac LAN: http://<IP-may-chu>:8000
 
 # Bước 4: Camera điểm danh
 scripts\run_camera_checkin.bat

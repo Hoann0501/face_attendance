@@ -126,14 +126,19 @@ scripts\run_backend.bat
 ```
 
 - API: `http://127.0.0.1:8000`
-- Web management: `http://127.0.0.1:8000`
+- Web quan ly: `http://127.0.0.1:8000` (may chu)
+- **May khac cung Wi-Fi / LAN:** mo `http://<IPv4-may-chay-backend>:8000` (xem `ipconfig` tren Windows). Script `run_backend.bat` da lang nghe `0.0.0.0`. Neu khong vao duoc: mo **Firewall** cho `python.exe` hoac cong `8000`.
 - API docs (Swagger): `http://127.0.0.1:8000/docs`
+
+Khi backend khoi dong, console se in them dong `LAN: http://...` neu phat hien duoc IPv4 noi bo.
 
 Hoac chay tay:
 
 ```bash
-python -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
+python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+Chi cho may chu thi co the dung `--host 127.0.0.1`.
 
 ### Camera diem danh
 
@@ -261,6 +266,7 @@ WINDOW_SIZE=7               # Temporal voting window
 MIN_REAL_VOTES=5            # Min real votes to pass
 
 VERIFY_THRESHOLD=0.35       # Face verification threshold
+# Camera goi API: tren cung may de mac dinh 127.0.0.1. Neu camera chay may KHAC trong LAN, dat IP may chu:
 BACKEND_HOST=127.0.0.1
 BACKEND_PORT=8000
 ```
