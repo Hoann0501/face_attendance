@@ -14,7 +14,7 @@ import sys
 import csv
 import shutil
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 DEPLOY_ROOT = Path(__file__).resolve().parent.parent
 if str(DEPLOY_ROOT) not in sys.path:
@@ -50,7 +50,8 @@ def _ensure_people_csv():
     import pandas as pd
     df = pd.read_csv(PEOPLE_CSV_PATH, encoding="utf-8-sig", dtype=str).fillna("")
 
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    vn_tz = timezone(timedelta(hours=7))
+    now = datetime.now(vn_tz).strftime("%Y-%m-%d %H:%M:%S")
     if "created_at" not in df.columns:
         df["created_at"] = now
     if "updated_at" not in df.columns:
@@ -114,7 +115,8 @@ def _migrate_old_logs():
                 # Already migrated
                 continue
 
-            now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+            vn_tz = timezone(timedelta(hours=7))
+            now = datetime.now(vn_tz).strftime("%Y-%m-%d %H:%M:%S")
             new_row = pd.DataFrame([{
                 "date":                    date_str,
                 "person_id":               person_id,

@@ -13,7 +13,7 @@ attendance_status values:
 from __future__ import annotations
 
 import json
-from datetime import datetime, date, timezone
+from datetime import datetime, date, timezone, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -43,11 +43,13 @@ MAX_RECENT_EVENTS = 50
 # ---------------------------------------------------------------------------
 
 def _now() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    vn_tz = timezone(timedelta(hours=7))
+    return datetime.now(vn_tz).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _today_str() -> str:
-    return date.today().strftime("%Y-%m-%d")
+    vn_tz = timezone(timedelta(hours=7))
+    return datetime.now(vn_tz).strftime("%Y-%m-%d")
 
 
 def _attendance_path(date_str: str) -> Path:
